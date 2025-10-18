@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tra Cứu Hồ Sơ Đăng Ký Thuốc</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- SheetJS - để đọc file Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #f8f9fd;
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* Header - Modern Gradient */
+        header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7aa8d1 100%);
+            color: white;
+            padding: 60px 30px 50px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(30, 60, 114, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -5%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        header h1, header .subtitle { position: relative; z-index: 1; }
+
+        h1 {
+            font-size: 2.8em;
+            font-weight: 800;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .subtitle { 
+            color: rgba(255, 255, 255, 0.98);
+            font-size: 1.05em;
+            font-weight: 300;
+            letter-spacing: 0.3px;
+        }
+
+        /* Setup Section */
+        .setup-section {
+            background: white;
+            padding: 35px;
+            margin: 25px auto;
+            max-width: 900px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(42, 82, 152, 0.1);
+            border: 1px solid #f0f0f0;
+        }
+
+        .setup-section h3 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.25em;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        .setup-tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 0;
+        }
+
+        .tab-btn {
+            padding: 14px 24px;
+            background: transparent;
+            border: none;
+            color: #999;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-size: 0.95em;
+        }
+
+        .tab-btn:hover {
+            color: #2a5298;
+        }
+
+        .tab-btn.active {
+            color: #2a5298;
+            border-bottom-color: #2a5298;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .setup-section input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d4e8e5;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin-bottom: 15px;
+        }
+
+        .setup-section button {
+            background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+            color: white;
+            border: none;
+            padding: 13px 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            font-size: 0.95em;
+            box-shadow: 0 4px 15px rgba(42, 82, 152, 0.3);
+        }
+
+        .setup-section button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(42, 82, 152, 0.4);
+        }
+
+        .setup-section button:active {
+            transform: translateY(0);
+        }
+
+        .setup-section button:disabled {
+            background: #ddd;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2a5298 0%, #1e3c72 50%, #7aa8d1 100%);
+            width: 0%;
+            animation: loading 1s ease-in-out infinite;
+        }
+
+        @keyframes loading {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+
+        #excelFile {
+            padding: 12px;
+            border: 2px dashed #d4e8e5;
+            border-radius: 6px;
+            width: 100%;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+
+        .hint {
+            background: linear-gradient(135deg, #f0f5ff 0%, #f5faff 100%);
+            padding: 18px;
+            border-left: 4px solid #2a5298;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #333;
+            border-radius: 6px;
+            line-height: 1.9;
+        }
+
+        .hint strong { color: #2a5298; font-weight: 600; }
+
+        .hint ol {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        .hint code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #4db8a8;
+        }
+
+        .status {
+            margin-top: 12px;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            display: none;
+            font-weight: 500;
+        }
+
+        .status.loading {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .status.success {
+            background: #dcfce7;
+            color: #166534;
+            border-left: 4px solid #22c55e;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        /* Search Section */
+        .search-section { 
+            background: white;
+            padding: 40px 30px;
+            position: relative;
+        }
+
+        .search-section::before {
+            content: '💊';
+            position: absolute;
+            right: 30px;
+            top: 20px;
+            font-size: 1.5em;
+            opacity: 0.15;
+        }
+
+        .search-label {
+            display: block;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+            color: #4db8a8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 16px 18px;
+            font-size: 16px;
+            border: 2px solid #d4e8e5;
+            border-radius: 8px;
+            outline: none;
+            transition: all 0.3s ease;
+            background: #fafffe;
+        }
+
+        #searchInput:focus {
+            border-color: #4db8a8;
+            box-shadow: 0 0 0 3px rgba(77, 184, 168, 0.1);
+            background: white;
+        }
+
+        #searchInput:disabled {
+            background: #f0f8f7;
+            cursor: not-allowed;
+        }
+
+        /* Results */
+        .results-section {
+            background: white;
+            margin: 0 30px 30px 30px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+        }
+
+        .results-count {
+            padding: 18px 25px;
+            background: #f5f7ff;
+            color: #667eea;
+            font-weight: 600;
+            border-bottom: 1px solid #e8ebf7;
+            font-size: 0.95em;
+        }
+
+        .no-results {
+            padding: 60px 30px;
+            text-align: center;
+            color: #a8c9c1;
+            font-size: 1em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: linear-gradient(90deg, #2a5298 0%, #1e3c72 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 0.85em;
+            position: sticky;
+            top: 0;
+        }
+
+        thead th {
+            padding: 16px 14px;
+            text-align: left;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            text-transform: uppercase;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        tbody tr:nth-child(even) { background: #f5f9ff; }
+        tbody tr:hover { 
+            background: #f0f5ff;
+            box-shadow: inset 0 0 0 1px #d4e5ff;
+        }
+
+        tbody td {
+            padding: 13px 14px;
+            font-size: 0.9em;
+            word-wrap: break-word;
+            max-width: 160px;
+            color: #333;
+        }
+
+        .copy-btn {
+            background: #f0f0f0;
+            border: none;
+            color: #2a5298;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.2s ease;
+            margin-left: 6px;
+            font-weight: 600;
+        }
+
+        .copy-btn:hover {
+            background: #2a5298;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.45);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 35px;
+            width: 90%;
+            max-width: 750px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(77, 184, 168, 0.15);
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .close-modal {
+            color: #a8c9c1;
+            float: right;
+            font-size: 28px;
+            font-weight: 300;
+            cursor: pointer;
+            transition: color 0.2s;
+            line-height: 1;
+        }
+
+        .close-modal:hover { color: #4db8a8; }
+
+        .modal-header {
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 18px;
+        }
+
+        .modal-header h2 { color: #2a5298; font-size: 1.6em; font-weight: 700; }
+
+        .detail-label {
+            font-weight: 600;
+            color: #2a5298;
+            font-size: 0.85em;
+            margin-bottom: 7px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            background: #f5f9ff;
+            padding: 12px 14px;
+            border-left: 3px solid #2a5298;
+            border-radius: 6px;
+            word-break: break-word;
+            color: #333;
+        }
+
+        .detail-link { color: #2196F3; text-decoration: none; cursor: pointer; font-weight: 500; }
+        .detail-link:hover { text-decoration: underline; }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 80px;
+            padding: 40px 20px;
+            color: #999;
+            font-size: 0.85em;
+            border-top: 1px solid #f0f0f0;
+            position: relative;
+        }
+
+        footer::before {
+            content: '';
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8em; }
+            header { padding: 35px 20px 30px; }
+            .search-section { padding: 30px 20px; }
+            .results-section { margin: 0 20px 20px 20px; }
+            .setup-section { margin: 15px; }
+            thead th { font-size: 0.75em; padding: 12px 8px; }
+            tbody td { font-size: 0.8em; padding: 10px 8px; max-width: 100px; }
+            .modal-content { width: 95%; margin: 15% auto; padding: 25px; }
+            .setup-tabs { flex-wrap: wrap; }
+            .tab-btn { padding: 10px 15px; font-size: 0.9em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 TRA CỨU HỒ SƠ ĐĂNG KÝ THUỐC</h1>
+            <p class="subtitle">🏥 Tìm kiếm nhanh hồ sơ đăng ký theo tên thuốc, SDK, hoặc hàm lượng hoạt chất 💊</p>
+        </header>
+
+        <!-- Setup Section -->
+        <div class="setup-section" id="setupSection">
+            <h3>⚙️ Tải dữ liệu - Chọn 1 trong 2 cách</h3>
+            
+            <div class="setup-tabs">
+                <button class="tab-btn active" onclick="switchTab('tab1')">
+                    📥 Cách 1: Upload file Excel
+                </button>
+                <button class="tab-btn" onclick="switchTab('tab2')">
+                    🔗 Cách 2: Kết nối Google Sheet
+                </button>
+            </div>
+
+            <!-- Tab 1: Upload Excel File -->
+            <div id="tab1" class="tab-content active">
+                <input 
+                    type="file" 
+                    id="excelFile" 
+                    accept=".xlsx,.xls,.csv"
+                >
+                <button onclick="loadExcelFile()">📤 Tải file Excel</button>
+
+                <div class="hint">
+                    <strong>📌 Hướng dẫn:</strong>
+                    <ol>
+                        <li>Vào Google Sheet Data2 của bạn</li>
+                        <li>Chọn menu <strong>"File → Tải xuống → Microsoft Excel (.xlsx)"</strong></li>
+                        <li>Chọn file Excel vừa tải về</li>
+                        <li>Bấm nút <strong>"📤 Tải file Excel"</strong></li>
+                        <li>✅ Xong! Có thể tìm kiếm ngay</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Tab 2: Google Sheet Link -->
+            <div id="tab2" class="tab-content">
+                <input 
+                    type="text" 
+                    id="gasUrl" 
+                    placeholder="Dán Web App URL từ Google Apps Script tại đây (https://script.google.com/macros/d/...)"
+                >
+                <button onclick="setupGAS()">🔗 Kết nối & Tải dữ liệu</button>
+
+                <div class="hint">
+                    <strong>📌 Hướng dẫn Setup (lần đầu, 5 phút):</strong>
+                    <ol>
+                        <li>Vào Google Sheet Data2</li>
+                        <li>Menu <strong>"Tiện ích → Editor Apps Script"</strong></li>
+                        <li>Copy code từ <strong>Code.gs</strong> (link ở dưới) → Paste vào Apps Script</li>
+                        <li>Bấm <strong>"Deploy"</strong> → <strong>"New deployment"</strong> → <strong>"Web app"</strong></li>
+                        <li>Chọn <strong>"Execute as: [Email bạn]"</strong> và <strong>"Who has access: Anyone"</strong></li>
+                        <li>Bấm <strong>"Deploy"</strong> → Copy URL Web App</li>
+                        <li>Dán URL vào ô trên → Bấm nút <strong>"🔗 Kết nối & Tải dữ liệu"</strong></li>
+                        <li>✅ Xong! Mỗi lần Sheet thay đổi, chỉ cần refresh trang</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div id="statusMsg" class="status"></div>
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div class="search-section">
+            <label class="search-label">Nhập từ khóa tìm kiếm:</label>
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Ví dụ: Abicin, Paracetamol, VN-..."
+                autocomplete="off"
+                disabled
+            >
+        </div>
+
+        <div class="results-section">
+            <div class="results-count" id="resultsCount">Chờ dữ liệu...</div>
+            <div id="resultsContainer"></div>
+        </div>
+
+        <footer>
+            <div style="position: relative; z-index: 1;">
+                © 4U-IT APP — Version 1.0 (17/10/2025) | Free • Fast • Excel Format
+            </div>
+        </footer>
+    </div>
+
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        // ===== BIẾN GLOBAL =====
+        let DATA = [];
+        let HEADERS = [];
+        let searchTimeout;
+
+        // Switch Tab
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Load Excel File
+        function loadExcelFile() {
+            const file = document.getElementById('excelFile').files[0];
+            if (!file) {
+                showStatus('❌ Vui lòng chọn file Excel', 'error');
+                return;
+            }
+
+            showStatus('⏳ Đang xử lý file Excel...', 'loading');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Lấy sheet đầu tiên (hoặc sheet "Data2" nếu có)
+                    let sheetName = workbook.SheetNames[0];
+                    if (workbook.SheetNames.includes('Data2')) {
+                        sheetName = 'Data2';
+                    }
+
+                    const sheet = workbook.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(sheet);
+
+                    if (rows.length === 0) {
+                        showStatus('❌ File Excel trống', 'error');
+                        return;
+                    }
+
+                    DATA = rows;
+                    HEADERS = Object.keys(rows[0]);
+
+                    showStatus(`✅ Thành công! Đã tải ${DATA.length} bản ghi.`, 'success');
+                    enableSearch();
+
+                } catch (err) {
+                    console.error('Lỗi:', err);
+                    showStatus('❌ Lỗi đọc file Excel: ' + err.message, 'error');
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Setup Google Apps Script
+        function setupGAS() {
+            const url = document.getElementById('gasUrl').value.trim();
+            if (!url) {
+                showStatus('❌ Vui lòng dán URL Web App từ Google Apps Script', 'error');
+                return;
+            }
+
+            if (!url.includes('script.google.com')) {
+                showStatus('❌ URL không hợp lệ. Phải là URL từ Google Apps Script', 'error');
+                return;
+            }
+
+            showStatus('⏳ Đang tải dữ liệu từ Google Apps Script...', 'loading');
+
+            // Fetch JSON từ GAS
+            const apiUrl = url + '?format=json';
+            
+            fetch(apiUrl, { 
+                mode: 'cors',
+                cache: 'no-store'
+            })
+                .then(res => res.json())
+                .then(json => {
+                    if (json.success && json.data && json.data.length > 0) {
+                        DATA = json.data;
+                        HEADERS = Object.keys(json.data[0]);
+
+                        showStatus(`✅ Thành công! Đã tải ${DATA.length} bản ghi từ Google Sheet.`, 'success');
+                        enableSearch();
+                    } else {
+                        showStatus('❌ Không có dữ liệu. Kiểm tra Sheet có dữ liệu không?', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error('Lỗi:', err);
+                    showStatus('❌ Lỗi kết nối. Kiểm tra: (1) URL có đúng? (2) Apps Script đã deploy? (3) Cấp quyền "Anyone"?', 'error');
+                });
+        }
+
+        // Enable Search
+        function enableSearch() {
+            document.getElementById('searchInput').disabled = false;
+            document.getElementById('searchInput').focus();
+            document.getElementById('resultsCount').textContent = `📊 Đã tải ${DATA.length} bản ghi`;
+            document.getElementById('resultsContainer').innerHTML = 
+                '<div class="no-results">Gõ từ khóa vào ô tìm kiếm ở trên để bắt đầu</div>';
+        }
+
+        // Show Status
+        function showStatus(msg, type) {
+            const status = document.getElementById('statusMsg');
+            status.textContent = msg;
+            status.className = `status ${type}`;
+        }
+
+        // Tìm kiếm
+        function performSearch() {
+            clearTimeout(searchTimeout);
+            const query = document.getElementById('searchInput').value.toLowerCase();
+
+            searchTimeout = setTimeout(() => {
+                if (!query) {
+                    document.getElementById('resultsContainer').innerHTML = 
+                        '<div class="no-results">Gõ từ khóa vào ô tìm kiếm ở trên để bắt đầu</div>';
+                    return;
+                }
+
+                const results = DATA.filter(item => {
+                    const tenDangKy = (item['Ten dang ky'] || '').toLowerCase();
+                    const sdk = (item['SDK'] || '').toLowerCase();
+                    const hamLuong = (item['Ham luong hoat chat'] || '').toLowerCase();
+
+                    return tenDangKy.includes(query) || sdk.includes(query) || hamLuong.includes(query);
+                });
+
+                renderResults(results);
+            }, 100);
+        }
+
+        // Render bảng
+        function renderResults(results) {
+            const container = document.getElementById('resultsContainer');
+            const countDiv = document.getElementById('resultsCount');
+
+            if (!results || results.length === 0) {
+                countDiv.textContent = '⚠️ Không tìm thấy';
+                container.innerHTML = '<div class="no-results">Không tìm thấy kết quả phù hợp.</div>';
+                return;
+            }
+
+            countDiv.textContent = `📊 Tìm thấy ${results.length} hồ sơ`;
+
+            const cols = ['Ten dang ky', 'Ham luong hoat chat', 'Dang bao che', 'Quy cach', 'Tieu chuan', 'Han dung', 'SDK', 'Dot cap', 'Ngay cap SDK', 'Ngay het SDK', 'Ngay nop', 'Ma HS', 'Hien trang', 'Link'];
+            let html = '<table><thead><tr>';
+            cols.forEach(c => html += `<th>${c}</th>`);
+            html += '<th style="text-align:center;width:50px;">Chi tiết</th></tr></thead><tbody>';
+
+            results.forEach((item) => {
+                const idx = DATA.indexOf(item);
+                html += '<tr onclick="showDetail(' + idx + ')">';
+                cols.forEach(col => {
+                    const val = item[col] || '—';
+                    if (col === 'SDK') {
+                        html += `<td><span>${val} <button class="copy-btn" onclick="event.stopPropagation(); copyText('${val.replace(/'/g, "\\'")}')">📋</button></span></td>`;
+                    } else {
+                        html += `<td>${val}</td>`;
+                    }
+                });
+                html += `<td style="text-align:center;"><button class="copy-btn" onclick="event.stopPropagation(); showDetail(${idx})">👁️</button></td></tr>`;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // Chi tiết
+        function showDetail(idx) {
+            const item = DATA[idx];
+            let html = `<div class="modal-header"><h2>${item['Ten dang ky'] || 'Chi tiết'}</h2></div>`;
+
+            HEADERS.forEach(h => {
+                const v = item[h] || '—';
+                let display = v;
+                if (h === 'Link ho so' && v.startsWith('http')) {
+                    display = `<a href="${v}" target="_blank" class="detail-link">${v} 🔗</a>`;
+                }
+                html += `<div class="detail-group"><div class="detail-label">${h}</div><div class="detail-value">${display}</div></div>`;
+            });
+
+            document.getElementById('modalBody').innerHTML = html;
+            document.getElementById('detailModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => alert(`✅ Đã copy rồi nhé cục cưng: ${text}`));
+        }
+
+        // Event
+        document.getElementById('searchInput').addEventListener('input', performSearch);
+        window.onclick = e => { if (e.target.id === 'detailModal') closeModal(); }
+    </script>
+</body>
+</html>
